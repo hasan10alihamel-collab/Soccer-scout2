@@ -6,99 +6,30 @@
     <title>Scout AI Master</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #020617; color: #f8fafc; }
-        .stats-box { background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(255,255,255,0.1); }
+        body { background-color: #020617; color: #f8fafc; font-family: ui-sans-serif, system-ui; }
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        .stat-card { background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.05); }
     </style>
 </head>
-<body class="min-h-screen p-6 font-sans">
+<body class="min-h-screen flex items-center justify-center p-6">
 
-    <div class="max-w-md mx-auto space-y-6">
-        <div class="text-center py-6">
-            <h1 class="text-4xl font-black italic text-cyan-400">SCOUT<span class="text-white">AI</span></h1>
-            <p class="text-slate-500 text-[10px] uppercase tracking-widest mt-1">Direct Wiki-Data Stream</p>
+    <div class="w-full max-w-md space-y-6">
+        <div class="text-center">
+            <h1 class="text-4xl font-black italic tracking-tighter text-cyan-400">SCOUT<span class="text-white">AI</span></h1>
+            <p class="text-slate-500 text-xs uppercase tracking-widest mt-1 font-bold">Wikipedia Data Stream</p>
         </div>
 
         <div class="space-y-3">
-            <input id="playerInput" type="text" placeholder="Full Name (e.g. Cristiano Ronaldo)" 
-                class="w-full bg-slate-900 border border-slate-700 p-4 rounded-2xl outline-none focus:ring-2 ring-cyan-500">
-            <button onclick="fetchStats()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-black py-4 rounded-2xl transition">
-                EXTRACT DATA
+            <input id="playerInput" type="text" placeholder="Search Player (e.g. Messi, Pele)" 
+                class="w-full bg-slate-900 border border-slate-700 p-4 rounded-2xl outline-none focus:ring-2 ring-cyan-500 transition-all text-white">
+            <button onclick="scoutPlayer()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-black py-4 rounded-2xl transition shadow-lg shadow-cyan-900/20">
+                SEARCH DATABASE
             </button>
         </div>
 
-        <div id="loading" class="hidden text-center py-4 animate-pulse text-cyan-500 font-bold">EXTRACTING...</div>
-
-        <div id="resultCard" class="hidden stats-box p-6 rounded-3xl space-y-4">
-            <h2 id="name" class="text-2xl font-black"></h2>
-            
-            <div class="grid grid-cols-2 gap-4">
-                <div class="p-4 rounded-xl bg-black/40">
-                    <p class="text-[10px] text-slate-500 font-bold uppercase">Goals</p>
-                    <p id="goals" class="text-3xl font-black text-cyan-400">--</p>
-                </div>
-                <div class="p-4 rounded-xl bg-black/40">
-                    <p class="text-[10px] text-slate-500 font-bold uppercase">Apps</p>
-                    <p id="matches" class="text-3xl font-black text-white">--</p>
-                </div>
-            </div>
-
-            <div class="p-4 bg-white/5 rounded-2xl border border-white/5">
-                <p class="text-[10px] text-slate-500 font-bold uppercase mb-2">AI Intelligence Summary</p>
-                <p id="summary" class="text-sm text-slate-300 leading-relaxed italic"></p>
-            </div>
+        <div id="loading" class="hidden text-center py-4">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-cyan-500 border-t-transparent"></div>
+            <p class="text-cyan-500 text-sm font-bold mt-2 tracking-widest uppercase">Fetching Stats...</p>
         </div>
-    </div>
 
-    <script>
-        async function fetchStats() {
-            const player = document.getElementById('playerInput').value;
-            const loading = document.getElementById('loading');
-            const result = document.getElementById('resultCard');
-            
-            if(!player) return;
-            loading.classList.remove('hidden');
-            result.classList.add('hidden');
-
-            try {
-                // Using Wikipedia's official API to get the "Extract" and "Infobox"
-                const url = `https://en.wikipedia.org/api/rest_v1/page/mobile-sections/${encodeURIComponent(player.replace(/\s+/g, '_'))}`;
-                
-                const response = await fetch(url);
-                const data = await response.json();
-
-                // Find the Infobox HTML in the API response
-                const infoboxHtml = data.lead.sections[0].text;
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(infoboxHtml, 'text/html');
-                
-                // Get Career Totals
-                let goals = "N/A";
-                let matches = "N/A";
-                
-                const rows = Array.from(doc.querySelectorAll('tr'));
-                rows.forEach(row => {
-                    if (row.innerText.includes('Total')) {
-                        const tds = row.querySelectorAll('td');
-                        if (tds.length >= 2) {
-                            matches = tds[0].innerText.replace(/\[.*?\]/g, "").trim();
-                            goals = tds[1].innerText.replace(/\[.*?\]/g, "").trim();
-                        }
-                    }
-                });
-
-                document.getElementById('name').innerText = data.lead.displaytitle;
-                document.getElementById('goals').innerText = goals;
-                document.getElementById('matches').innerText = matches;
-                document.getElementById('summary').innerText = data.lead.description || "Top-tier professional football career data identified.";
-                
-                result.classList.remove('hidden');
-
-            } catch (err) {
-                alert("Could not find data. Try using the player's full name.");
-            } finally {
-                loading.classList.add('hidden');
-            }
-        }
-    </script>
-</body>
-</html>
+        <div id="resultCard" class="hidden glass p-6 rounded-3xl animate-in fade-in slide-in-from-
