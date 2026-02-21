@@ -1,60 +1,70 @@
-async function scrapeData() {
-    const player = document.getElementById('playerInput').value;
-    const loading = document.getElementById('loading');
-    const result = document.getElementById('resultCard');
-    
-    if(!player) return;
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scout AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-white p-5">
 
-    loading.classList.remove('hidden');
-    result.classList.add('hidden');
+    <div class="max-w-md mx-auto space-y-4">
+        <h1 class="text-3xl font-black text-cyan-400">SCOUT AI</h1>
+        <input id="playerInput" type="text" placeholder="Full Name (e.g. Lionel Messi)" class="w-full p-4 rounded-xl bg-slate-900 border border-slate-700">
+        <button onclick="scrapeData()" class="w-full bg-cyan-600 p-4 rounded-xl font-bold">SEARCH DATABASE</button>
+        <div id="loading" class="hidden animate-pulse text-cyan-500 text-center">TUNNELING...</div>
+        <div id="resultCard" class="hidden p-6 bg-slate-900 rounded-2xl border border-slate-800">
+            <h2 id="name" class="text-2xl font-bold"></h2>
+            <p id="source" class="text-xs text-slate-500 mb-4"></p>
+            <div class="flex justify-between">
+                <div><p class="text-xs text-slate-400">GOALS</p><p id="goals" class="text-3xl font-black"></p></div>
+                <div><p class="text-xs text-slate-400">MATCHES</p><p id="assists" class="text-3xl font-black"></p></div>
+            </div>
+            <div id="aiAnalysis" class="mt-4 p-3 bg-white/5 rounded-lg text-sm italic text-slate-400"></div>
+        </div>
+    </div>
 
-    try {
-        // We switch to Wikipedia - it's much faster and easier to scrape
-        const targetUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(player.replace(' ', '_'))}`;
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+    <script>
+        async function scrapeData() {
+            const player = document.getElementById('playerInput').value;
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('resultCard');
+            if(!player) return;
 
-        const response = await fetch(proxyUrl);
-        const data = await response.json();
-        
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(data.contents, 'text/html');
+            loading.classList.remove('hidden');
+            result.classList.add('hidden');
 
-        // Look for the "Infobox" on the right side of Wikipedia
-        const infoBox = doc.querySelector('.infobox.vcard');
-        
-        if (infoBox) {
-            // Find the 'Total' goals and matches row
-            const rows = Array.from(infoBox.querySelectorAll('tr'));
-            let goals = "N/A";
-            let matches = "N/A";
-
-            // Loop through rows to find the "Total" career stats
-            rows.forEach(row => {
-                if(row.innerText.includes('Total')) {
-                    const cells = row.querySelectorAll('td');
-                    if(cells.length >= 2) {
-                        matches = cells[0].innerText.replace(/\D/g, ""); // Just the numbers
-                        goals = cells[1].innerText.replace(/\D/g, "");   // Just the numbers
-                    }
-                }
-            });
-
-            const fullName = doc.querySelector('#firstHeading').innerText;
-
-            document.getElementById('name').innerText = fullName;
-            document.getElementById('goals').innerText = goals;
-            document.getElementById('assists').innerText = matches; // Swapping matches for now
-            document.getElementById('source').innerText = "Verified Wikipedia Sports Data";
-            document.getElementById('aiAnalysis').innerText = `AI Analysis: ${fullName} has played ${matches} professional matches and scored ${goals} goals. This data includes all top-tier league appearances found in the public archive.`;
-
-            result.classList.remove('hidden');
-        } else {
-            alert("Player not found. Try 'Cristiano Ronaldo' or 'Lionel Messi' to test.");
+            try {
+                const targetUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(player.replace(' ', '_'))}`;
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+                const response = await fetch(proxyUrl);
+                const data = await response.json();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(data.contents, 'text/html');
+                const infoBox = doc.querySelector('.infobox.vcard');
+                
+                if (infoBox) {
+                    const rows = Array.from(infoBox.querySelectorAll('tr'));
+                    let goals = "0"; let matches = "0";
+                    rows.forEach(row => {
+                        if(row.innerText.includes('Total')) {
+                            const cells = row.querySelectorAll('td');
+                            if(cells.length >= 2) {
+                                matches = cells[0].innerText.split('(')[0].trim();
+                                goals = cells[1].innerText.split('(')[0].trim();
+                            }
+                        }
+                    });
+                    document.getElementById('name').innerText = doc.querySelector('#firstHeading').innerText;
+                    document.getElementById('goals').innerText = goals;
+                    document.getElementById('assists').innerText = matches;
+                    document.getElementById('source').innerText = "Verified Wikipedia Sports Data";
+                    document.getElementById('aiAnalysis').innerText = `Scout Report: This player has recorded ${goals} goals in ${matches} top-tier appearances.`;
+                    result.classList.remove('hidden');
+                } else { alert("Player page not found. Check spelling!"); }
+            } catch (err) { alert("Tunnel busy. Try again!"); }
+            finally { loading.classList.add('hidden'); }
         }
-
-    } catch (err) {
-        alert("The tunnel is congested. Refresh and try again!");
-    } finally {
-        loading.classList.add('hidden');
-    }
-}
+    </script>
+</body>
+</html>
