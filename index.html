@@ -1,98 +1,82 @@
-<!DOCTYPE html>
+                <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scout AI Master</title>
+    <title>Scout AI Fix</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-white min-h-screen flex items-center justify-center p-6">
 
     <div class="w-full max-w-md space-y-6">
         <div class="text-center">
-            <h1 class="text-4xl font-black text-cyan-400 italic">SCOUT AI</h1>
-            <p class="text-slate-500 text-[10px] tracking-[0.2em] uppercase mt-1">Global Data Tunnel</p>
+            <h1 class="text-4xl font-black text-cyan-400">SCOUT AI</h1>
+            <p class="text-slate-500 text-xs">V2.1 - STABLE STREAM</p>
         </div>
 
         <div class="space-y-3">
-            <input id="pInput" type="text" placeholder="Enter Full Name (e.g. Lionel Messi)" 
+            <input id="playerInput" type="text" placeholder="Enter Player Name..." 
                 class="w-full bg-slate-900 border border-slate-700 p-4 rounded-2xl outline-none focus:ring-2 ring-cyan-500 text-white">
-            <button id="searchBtn" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-black py-4 rounded-2xl transition shadow-lg shadow-cyan-900/40">
-                EXTRACT STATS
+            <button id="searchBtn" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-black py-4 rounded-2xl transition">
+                SEARCH DATABASE
             </button>
         </div>
 
-        <div id="loading" class="hidden text-center text-cyan-500 font-bold animate-pulse">ESTABLISHING TUNNEL...</div>
+        <div id="loading" class="hidden text-center text-cyan-500 font-bold animate-pulse">FETCHING...</div>
 
-        <div id="result" class="hidden bg-slate-900 p-6 rounded-3xl border border-white/5 shadow-2xl">
-            <h2 id="displayName" class="text-2xl font-black mb-4 text-white"></h2>
-            <div class="grid grid-cols-2 gap-4">
-                <div class="bg-black/40 p-4 rounded-2xl border border-white/5">
-                    <p class="text-[10px] text-slate-500 font-bold uppercase">Goals</p>
-                    <p id="g" class="text-3xl font-black text-cyan-400">0</p>
+        <div id="resultCard" class="hidden bg-slate-900 p-6 rounded-3xl border border-slate-800">
+            <h2 id="name" class="text-2xl font-bold"></h2>
+            <div class="grid grid-cols-2 gap-4 mt-4">
+                <div class="bg-black/40 p-4 rounded-xl">
+                    <p class="text-[10px] text-slate-500 font-bold">GOALS</p>
+                    <p id="goals" class="text-3xl font-black text-cyan-400">--</p>
                 </div>
-                <div class="bg-black/40 p-4 rounded-2xl border border-white/5">
-                    <p class="text-[10px] text-slate-500 font-bold uppercase">Apps</p>
-                    <p id="m" class="text-3xl font-black text-white">0</p>
+                <div class="bg-black/40 p-4 rounded-xl">
+                    <p class="text-[10px] text-slate-500 font-bold">APPS</p>
+                    <p id="apps" class="text-3xl font-black text-white">--</p>
                 </div>
             </div>
-            <p id="summary" class="mt-4 text-xs text-slate-400 italic leading-relaxed"></p>
         </div>
     </div>
 
     <script>
-        document.getElementById('searchBtn').onclick = async function() {
-            const name = document.getElementById('pInput').value.trim();
+        // Use a more robust way to trigger the button
+        document.getElementById('searchBtn').addEventListener('click', async function() {
+            const query = document.getElementById('playerInput').value;
             const loading = document.getElementById('loading');
-            const result = document.getElementById('result');
-
-            if(!name) return alert("Please type a player name.");
+            const result = document.getElementById('resultCard');
+            
+            if(!query) {
+                alert("Please type a name first!");
+                return;
+            }
 
             loading.classList.remove('hidden');
             result.classList.add('hidden');
 
             try {
-                // We use AllOrigins proxy to bypass the "Failed to Fetch" error
-                const targetUrl = `https://en.wikipedia.org/api/rest_v1/page/mobile-sections/${encodeURIComponent(name.replace(/\s+/g, '_'))}`;
-                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+                // Search Wiki for the right title
+                const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*`;
+                const searchRes = await fetch(searchUrl);
+                const searchData = await searchRes.json();
+                
+                if (!searchData.query.search.length) throw new Error("No player found on Wikipedia.");
+                const title = searchData.query.search[0].title;
 
-                const response = await fetch(proxyUrl);
+                // Get page data
+                const statsUrl = `https://en.wikipedia.org/api/rest_v1/page/mobile-sections/${encodeURIComponent(title.replace(/\s+/g, '_'))}`;
+                const response = await fetch(statsUrl);
+                if (!response.ok) throw new Error("Could not connect to Wikipedia.");
                 const data = await response.json();
-                
-                // AllOrigins wraps the result in a "contents" string, we must parse it
-                const wikiData = JSON.parse(data.contents);
-                
-                const html = wikiData.lead.sections[0].text;
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
 
+                const infoboxHtml = data.lead.sections[0].text;
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(infoboxHtml, 'text/html');
+                
                 let goals = "0";
                 let apps = "0";
-
+                
+                // Better table scanning
                 const rows = Array.from(doc.querySelectorAll('tr'));
                 for (let row of rows) {
-                    if (row.innerText.includes('Total')) {
-                        const cells = row.querySelectorAll('td');
-                        if (cells.length >= 2) {
-                            apps = cells[0].innerText.split('[')[0].split('(')[0].trim();
-                            goals = cells[1].innerText.split('[')[0].split('(')[0].trim();
-                            break; 
-                        }
-                    }
-                }
-
-                document.getElementById('displayName').innerText = wikiData.lead.displaytitle;
-                document.getElementById('g').innerText = goals;
-                document.getElementById('m').innerText = apps;
-                document.getElementById('summary').innerText = wikiData.lead.description || "Historical stats found.";
-                result.classList.remove('hidden');
-
-            } catch (err) {
-                alert("Tunnel Error: Ensure name is spelled correctly (e.g. Cristiano Ronaldo).");
-            } finally {
-                loading.classList.add('hidden');
-            }
-        };
-    </script>
-</body>
-</html>
+                    if (row.innerText.toLowerCase().includes('total')) {
