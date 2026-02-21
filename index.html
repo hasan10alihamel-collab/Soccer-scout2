@@ -3,33 +3,80 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scout AI Master</title>
+    <title>Scout AI Fix</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { background-color: #020617; color: #f8fafc; font-family: ui-sans-serif, system-ui; }
-        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
-        .stat-card { background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.05); }
-    </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-6">
+<body class="bg-slate-950 text-white min-h-screen flex items-center justify-center p-6">
 
     <div class="w-full max-w-md space-y-6">
         <div class="text-center">
-            <h1 class="text-4xl font-black italic tracking-tighter text-cyan-400">SCOUT<span class="text-white">AI</span></h1>
-            <p class="text-slate-500 text-xs uppercase tracking-widest mt-1 font-bold">Wikipedia Data Stream</p>
+            <h1 class="text-4xl font-black text-cyan-400">SCOUT AI</h1>
+            <p class="text-slate-500 text-xs">V2.1 - STABLE STREAM</p>
         </div>
 
         <div class="space-y-3">
-            <input id="playerInput" type="text" placeholder="Search Player (e.g. Messi, Pele)" 
-                class="w-full bg-slate-900 border border-slate-700 p-4 rounded-2xl outline-none focus:ring-2 ring-cyan-500 transition-all text-white">
-            <button onclick="scoutPlayer()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-black py-4 rounded-2xl transition shadow-lg shadow-cyan-900/20">
+            <input id="playerInput" type="text" placeholder="Enter Player Name..." 
+                class="w-full bg-slate-900 border border-slate-700 p-4 rounded-2xl outline-none focus:ring-2 ring-cyan-500 text-white">
+            <button id="searchBtn" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-black py-4 rounded-2xl transition">
                 SEARCH DATABASE
             </button>
         </div>
 
-        <div id="loading" class="hidden text-center py-4">
-            <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-cyan-500 border-t-transparent"></div>
-            <p class="text-cyan-500 text-sm font-bold mt-2 tracking-widest uppercase">Fetching Stats...</p>
-        </div>
+        <div id="loading" class="hidden text-center text-cyan-500 font-bold animate-pulse">FETCHING...</div>
 
-        <div id="resultCard" class="hidden glass p-6 rounded-3xl animate-in fade-in slide-in-from-
+        <div id="resultCard" class="hidden bg-slate-900 p-6 rounded-3xl border border-slate-800">
+            <h2 id="name" class="text-2xl font-bold"></h2>
+            <div class="grid grid-cols-2 gap-4 mt-4">
+                <div class="bg-black/40 p-4 rounded-xl">
+                    <p class="text-[10px] text-slate-500 font-bold">GOALS</p>
+                    <p id="goals" class="text-3xl font-black text-cyan-400">--</p>
+                </div>
+                <div class="bg-black/40 p-4 rounded-xl">
+                    <p class="text-[10px] text-slate-500 font-bold">APPS</p>
+                    <p id="apps" class="text-3xl font-black text-white">--</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Use a more robust way to trigger the button
+        document.getElementById('searchBtn').addEventListener('click', async function() {
+            const query = document.getElementById('playerInput').value;
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('resultCard');
+            
+            if(!query) {
+                alert("Please type a name first!");
+                return;
+            }
+
+            loading.classList.remove('hidden');
+            result.classList.add('hidden');
+
+            try {
+                // Search Wiki for the right title
+                const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*`;
+                const searchRes = await fetch(searchUrl);
+                const searchData = await searchRes.json();
+                
+                if (!searchData.query.search.length) throw new Error("No player found on Wikipedia.");
+                const title = searchData.query.search[0].title;
+
+                // Get page data
+                const statsUrl = `https://en.wikipedia.org/api/rest_v1/page/mobile-sections/${encodeURIComponent(title.replace(/\s+/g, '_'))}`;
+                const response = await fetch(statsUrl);
+                if (!response.ok) throw new Error("Could not connect to Wikipedia.");
+                const data = await response.json();
+
+                const infoboxHtml = data.lead.sections[0].text;
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(infoboxHtml, 'text/html');
+                
+                let goals = "0";
+                let apps = "0";
+                
+                // Better table scanning
+                const rows = Array.from(doc.querySelectorAll('tr'));
+                for (let row of rows) {
+                    if (row.innerText.toLowerCase().includes('total')) {
